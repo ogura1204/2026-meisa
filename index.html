@@ -9,6 +9,24 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
     
     <script>
+      // ▼▼▼ グローバル変数の設定 ▼▼▼
+      window.iconPlay = '<svg viewBox="0 0 24 24"><path d="M7 4V20L19 12L7 4Z"></path></svg>';
+      window.iconPause = '<svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect></svg>';
+      
+      let savedPlayState = sessionStorage.getItem('globalIsPlaying');
+      window.shouldPlay = savedPlayState === null ? true : (savedPlayState === 'true');
+      window.activeMedia = null;
+
+      window.setGlobalPlayState = function(play) {
+        window.shouldPlay = play;
+        sessionStorage.setItem('globalIsPlaying', play ? 'true' : 'false');
+        document.querySelectorAll('.play-pause-btn').forEach(btn => btn.innerHTML = play ? window.iconPause : window.iconPlay);
+      };
+
+      window.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.play-pause-btn').forEach(btn => btn.innerHTML = window.shouldPlay ? window.iconPause : window.iconPlay);
+      });
+
       // ▼▼▼ ジェスチャー検出 ▼▼▼
       AFRAME.registerComponent("gesture-detector", {
         init: function() {
@@ -149,7 +167,6 @@
         adjustSize: function(img) {
           const w = img.naturalWidth;
           const h = img.naturalHeight;
-          // 画像の読み込みが不十分な場合のエラー回避
           if (!w || !h) return; 
 
           const imgRatio = w / h;
@@ -204,6 +221,90 @@
           }, 400);
         }
       });
+
+      // ▼▼▼ ARターゲット制御コンポーネント (エラー防止の要) ▼▼▼
+      AFRAME.registerComponent('target-handler', {
+        schema: {
+          type: { type: 'string' },
+          targetId: { type: 'string', default: '' }
+        },
+        init: function() {
+          this.el.addEventListener('targetFound', () => {
+            document.querySelectorAll('.scan-guide').forEach(g => g.style.opacity = 0); 
+            document.querySelectorAll('.controls-panel').forEach(p => p.classList.add('active')); 
+            
+            if (this.data.type === 'youtube') {
+              window.activeMedia = { type: 'youtube' };
+              document.getElementById('youtube-popup').style.display = 'block';
+              if (window.shouldPlay) {
+                const yt = document.getElementById('yt-player');
+                if (yt && yt.contentWindow) yt.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+              }
+            } else if (this.data.type === 'slideshow') {
+              const contentEl = document.getElementById(this.data.targetId);
+              if (contentEl && contentEl.components['auto-slideshow']) {
+                const comp = contentEl.components['auto-slideshow'];
+                window.activeMedia = { type: 'slideshow', instance: comp };
+                if (window.shouldPlay) comp.startSlide();
+              }
+            }
+            window.setGlobalPlayState(window.shouldPlay);
+          });
+
+          this.el.addEventListener('targetLost', () => {
+            document.querySelectorAll('.scan-guide').forEach(g => g.style.opacity = 1); 
+            document.querySelectorAll('.controls-panel').forEach(p => p.classList.remove('active')); 
+            
+            if (this.data.type === 'youtube') {
+              document.getElementById('youtube-popup').style.display = 'none';
+              const yt = document.getElementById('yt-player');
+              if (yt && yt.contentWindow) yt.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+            } else if (this.data.type === 'slideshow') {
+              const contentEl = document.getElementById(this.data.targetId);
+              if (contentEl && contentEl.components['auto-slideshow']) {
+                contentEl.components['auto-slideshow'].stopSlide();
+              }
+            }
+            window.activeMedia = null;
+          });
+        }
+      });
+
+      // グローバルボタン操作
+      window.globalPrev = function() {
+        if (window.activeMedia && window.activeMedia.type === 'slideshow') {
+          window.activeMedia.instance.changeSlide(-1);
+        }
+      };
+      
+      window.globalNext = function() {
+        if (window.activeMedia && window.activeMedia.type === 'slideshow') {
+          window.activeMedia.instance.changeSlide(1);
+        }
+      };
+      
+      window.globalTogglePlay = function() {
+        if (!window.activeMedia) return;
+        
+        if (window.activeMedia.type === 'slideshow') {
+          if (window.activeMedia.instance.isPlaying) {
+            window.activeMedia.instance.stopSlide();
+            window.setGlobalPlayState(false);
+          } else {
+            window.activeMedia.instance.startSlide();
+            window.setGlobalPlayState(true);
+          }
+        } else if (window.activeMedia.type === 'youtube') {
+          const yt = document.getElementById('yt-player');
+          if (window.shouldPlay) {
+            if (yt && yt.contentWindow) yt.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+            window.setGlobalPlayState(false);
+          } else {
+            if (yt && yt.contentWindow) yt.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+            window.setGlobalPlayState(true);
+          }
+        }
+      };
 
       // 横向き対策：ARエンジンの再構築
       window.addEventListener('orientationchange', () => {
@@ -288,7 +389,7 @@
         position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
         width: 85vw; max-width: 600px; aspect-ratio: 16/9;
         border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.9);
-        display: none; pointer-events: auto; z-index: 9500;
+        display: none; pointer-events: auto; z-index: 8500;
         background: #000;
       }
       #youtube-popup iframe { width: 100%; height: 100%; border: none; }
@@ -389,10 +490,10 @@
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <!-- ★変更箇所：確実に要素を取得できるよう id="target-0" などを付与 -->
-      <a-entity id="target-0" mindar-image-target="targetIndex: 0"></a-entity>
+      <!-- ▼▼▼ 修正の要：安全なコンポーネント方式に変更 ▼▼▼ -->
+      <a-entity mindar-image-target="targetIndex: 0" target-handler="type: youtube"></a-entity>
 
-      <a-entity id="target-1" mindar-image-target="targetIndex: 1">
+      <a-entity mindar-image-target="targetIndex: 1" target-handler="type: slideshow; targetId: slideshow-2">
         <a-image id="slideshow-2" position="0 0 0" auto-slideshow="prefix: slide1; interval: 3500"></a-image>
       </a-entity>
 
@@ -401,16 +502,6 @@
     <script>
       const loadingDiv = document.getElementById('loading');
       const sceneEl = document.querySelector('a-scene');
-      
-      const guides = document.querySelectorAll('.scan-guide');
-      const panels = document.querySelectorAll('.controls-panel');
-      const playPauseBtns = document.querySelectorAll('.play-pause-btn');
-
-      const ytPopup = document.getElementById('youtube-popup');
-      const ytPlayer = document.getElementById('yt-player');
-
-      const iconPlay = '<svg viewBox="0 0 24 24"><path d="M7 4V20L19 12L7 4Z"></path></svg>';
-      const iconPause = '<svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect></svg>';
 
       sceneEl.addEventListener('arReady', () => { hideLoading(); });
       sceneEl.addEventListener('arError', () => { hideLoading(); alert("カメラにアクセスできませんでした。"); });
@@ -422,112 +513,6 @@
             setTimeout(() => { loadingDiv.style.display = 'none'; }, 500);
         }
       }
-
-      window.activeMedia = null;
-
-      let savedPlayState = sessionStorage.getItem('globalIsPlaying');
-      let shouldPlay = savedPlayState === null ? true : (savedPlayState === 'true');
-      
-      playPauseBtns.forEach(btn => btn.innerHTML = shouldPlay ? iconPause : iconPlay);
-
-      window.globalPrev = function() {
-        if (window.activeMedia && window.activeMedia.type === 'slideshow') {
-          window.activeMedia.instance.changeSlide(-1);
-        }
-      };
-      
-      window.globalNext = function() {
-        if (window.activeMedia && window.activeMedia.type === 'slideshow') {
-          window.activeMedia.instance.changeSlide(1);
-        }
-      };
-      
-      window.globalTogglePlay = function() {
-        if (!window.activeMedia) return;
-        
-        if (window.activeMedia.type === 'slideshow') {
-          if (window.activeMedia.instance.isPlaying) {
-            window.activeMedia.instance.stopSlide();
-            setGlobalPlayState(false);
-          } else {
-            window.activeMedia.instance.startSlide();
-            setGlobalPlayState(true);
-          }
-        } else if (window.activeMedia.type === 'youtube') {
-          if (shouldPlay) {
-            ytPlayer.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
-            setGlobalPlayState(false);
-          } else {
-            ytPlayer.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-            setGlobalPlayState(true);
-          }
-        }
-      };
-
-      function setGlobalPlayState(play) {
-        shouldPlay = play;
-        sessionStorage.setItem('globalIsPlaying', play ? 'true' : 'false');
-        playPauseBtns.forEach(btn => btn.innerHTML = play ? iconPause : iconPlay);
-      }
-
-      // ★変更箇所：IDを使って確実に要素を取得
-      const targetsData = [
-          { 
-            el: document.getElementById('target-0'), 
-            type: 'youtube'
-          },
-          { 
-            el: document.getElementById('target-1'), 
-            type: 'slideshow', 
-            contentEl: document.getElementById('slideshow-2') 
-          }
-      ];
-
-      let activeTargetsCount = 0;
-      
-      targetsData.forEach(t => {
-          if(!t.el) return; // ← 前回はここで弾かれてしまっていた可能性が高いです
-          
-          t.el.addEventListener('targetFound', () => {
-              activeTargetsCount++;
-              guides.forEach(g => g.style.opacity = 0); 
-              panels.forEach(p => p.classList.add('active')); 
-              
-              if (t.type === 'youtube') {
-                  window.activeMedia = { type: 'youtube' };
-                  ytPopup.style.display = 'block';
-                  if (shouldPlay) {
-                      ytPlayer.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-                  }
-              } else if (t.type === 'slideshow') {
-                  const comp = t.contentEl.components['auto-slideshow'];
-                  window.activeMedia = { type: 'slideshow', instance: comp };
-                  if (shouldPlay && comp) comp.startSlide();
-              }
-              
-              playPauseBtns.forEach(btn => btn.innerHTML = shouldPlay ? iconPause : iconPlay);
-          });
-          
-          t.el.addEventListener('targetLost', () => {
-              activeTargetsCount--;
-              if(activeTargetsCount < 0) activeTargetsCount = 0;
-              
-              if(activeTargetsCount === 0) {
-                guides.forEach(g => g.style.opacity = 1); 
-                panels.forEach(p => p.classList.remove('active')); 
-              }
-              
-              if (t.type === 'youtube') {
-                  ytPopup.style.display = 'none';
-                  ytPlayer.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
-              } else if (t.type === 'slideshow') {
-                  if (t.contentEl.components['auto-slideshow']) {
-                      t.contentEl.components['auto-slideshow'].stopSlide();
-                  }
-              }
-              window.activeMedia = null;
-          });
-      });
     </script>
   </body>
 </html>
