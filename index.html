@@ -149,6 +149,9 @@
         adjustSize: function(img) {
           const w = img.naturalWidth;
           const h = img.naturalHeight;
+          // 画像の読み込みが不十分な場合のエラー回避
+          if (!w || !h) return; 
+
           const imgRatio = w / h;
           const targetRatio = this.data.targetAspectRatio; 
 
@@ -331,7 +334,6 @@
     
     <!-- ▼▼▼ YouTubeポップアップレイヤー ▼▼▼ -->
     <div id="youtube-popup">
-      <!-- YouTubeのAPIを有効にするため enablejsapi=1 などを付与しています -->
       <iframe id="yt-player" src="https://www.youtube.com/embed/ORi8EpA3k9Q?enablejsapi=1&rel=0&playsinline=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>
     </div>
 
@@ -372,7 +374,6 @@
       gesture-detector>
       
       <a-assets>
-        <!-- 動画アセットは削除し、画像のみにしました -->
         <img id="slide1-1" src="./slide1-1.jpg" />
         <img id="slide1-2" src="./slide1-2.jpg" />
         <img id="slide1-3" src="./slide1-3.jpg" />
@@ -388,11 +389,10 @@
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <!-- Target 0: 空のエンティティ (認識されたらJSでYouTubeを表示します) -->
-      <a-entity mindar-image-target="targetIndex: 0"></a-entity>
+      <!-- ★変更箇所：確実に要素を取得できるよう id="target-0" などを付与 -->
+      <a-entity id="target-0" mindar-image-target="targetIndex: 0"></a-entity>
 
-      <!-- Target 1: スライドショー -->
-      <a-entity mindar-image-target="targetIndex: 1">
+      <a-entity id="target-1" mindar-image-target="targetIndex: 1">
         <a-image id="slideshow-2" position="0 0 0" auto-slideshow="prefix: slide1; interval: 3500"></a-image>
       </a-entity>
 
@@ -470,13 +470,14 @@
         playPauseBtns.forEach(btn => btn.innerHTML = play ? iconPause : iconPlay);
       }
 
+      // ★変更箇所：IDを使って確実に要素を取得
       const targetsData = [
           { 
-            el: document.querySelector('[mindar-image-target="targetIndex: 0"]'), 
+            el: document.getElementById('target-0'), 
             type: 'youtube'
           },
           { 
-            el: document.querySelector('[mindar-image-target="targetIndex: 1"]'), 
+            el: document.getElementById('target-1'), 
             type: 'slideshow', 
             contentEl: document.getElementById('slideshow-2') 
           }
@@ -485,7 +486,7 @@
       let activeTargetsCount = 0;
       
       targetsData.forEach(t => {
-          if(!t.el) return;
+          if(!t.el) return; // ← 前回はここで弾かれてしまっていた可能性が高いです
           
           t.el.addEventListener('targetFound', () => {
               activeTargetsCount++;
@@ -495,7 +496,6 @@
               if (t.type === 'youtube') {
                   window.activeMedia = { type: 'youtube' };
                   ytPopup.style.display = 'block';
-                  // 初回再生時はスマートフォンの自動再生制限があるため、ユーザーにタップしてもらう必要がある場合があります
                   if (shouldPlay) {
                       ytPlayer.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
                   }
