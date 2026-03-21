@@ -61,33 +61,6 @@
         }
       });
 
-      // ▼▼▼ 動画サイズ自動調整コンポーネント ▼▼▼
-      AFRAME.registerComponent('adjust-video-size', {
-        schema: { targetAspectRatio: { type: 'number', default: 1.65 } },
-        init: function() {
-          const videoEl = document.querySelector(this.el.getAttribute('src'));
-          if (!videoEl) return;
-
-          const adjust = () => {
-            if (videoEl.videoWidth === 0) return;
-            const vRatio = videoEl.videoWidth / videoEl.videoHeight;
-            const tRatio = this.data.targetAspectRatio;
-            
-            if (vRatio > tRatio) {
-              this.el.setAttribute('width', 1.0);
-              this.el.setAttribute('height', 1.0 / vRatio);
-            } else {
-              const tHeight = 1.0 / tRatio;
-              this.el.setAttribute('height', tHeight);
-              this.el.setAttribute('width', tHeight * vRatio);
-            }
-          };
-
-          if (videoEl.readyState >= 1) { adjust(); }
-          else { videoEl.addEventListener('loadedmetadata', adjust); }
-        }
-      });
-
       // ▼▼▼ スライドショーコンポーネント ▼▼▼
       AFRAME.registerComponent('auto-slideshow', {
         schema: { 
@@ -307,6 +280,16 @@
       .footer-text { color: #fff; font-size: 15px; letter-spacing: 3px; text-shadow: 0 2px 6px rgba(0,0,0,0.8); }
       .footer-frame a { text-decoration: none; }
 
+      /* ▼▼▼ YouTubeプレーヤーのポップアップ用スタイル ▼▼▼ */
+      #youtube-popup {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: 85vw; max-width: 600px; aspect-ratio: 16/9;
+        border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.9);
+        display: none; pointer-events: auto; z-index: 9500;
+        background: #000;
+      }
+      #youtube-popup iframe { width: 100%; height: 100%; border: none; }
+
       @media (orientation: portrait) {
         #ui-landscape { display: none !important; }
         #ui-portrait { display: block !important; }
@@ -346,6 +329,12 @@
 
     <div id="loading"><div class="loader"></div><div id="loading-text">LOADING EXPERIENCE</div></div>
     
+    <!-- ▼▼▼ YouTubeポップアップレイヤー ▼▼▼ -->
+    <div id="youtube-popup">
+      <!-- YouTubeのAPIを有効にするため enablejsapi=1 などを付与しています -->
+      <iframe id="yt-player" src="https://www.youtube.com/embed/ORi8EpA3k9Q?enablejsapi=1&rel=0&playsinline=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+    </div>
+
     <div id="ui-portrait" class="ui-layer">
       <div class="scan-guide">アルバムを映してください</div>
       <div class="controls-panel">
@@ -354,7 +343,6 @@
         <button class="ctrl-btn ctrl-btn-stroke" onclick="globalNext()"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
       </div>
       <div class="footer-frame">
-        <!-- リンク先（href="..."）は適切なURLに変更してください -->
         <a href="https://example.com" target="_blank" rel="noopener noreferrer">
           <div class="footer-text">1,000+days of rasonance</div>
         </a>
@@ -369,7 +357,6 @@
         <button class="ctrl-btn ctrl-btn-stroke" onclick="globalNext()"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
       </div>
       <div class="footer-frame">
-        <!-- リンク先（href="..."）は適切なURLに変更してください -->
         <a href="https://example.com" target="_blank" rel="noopener noreferrer">
           <div class="footer-text">1,000+days of rasonance</div>
         </a>
@@ -385,63 +372,28 @@
       gesture-detector>
       
       <a-assets>
-        <!-- 動画アセットの追加 (iOS/Safari対策の属性を含む) -->
-        <video id="vid-1" src="./0327.MOV" loop crossorigin="anonymous" playsinline webkit-playsinline></video>
-
-        <!-- スライドショー用の画像 (s2, s3のみ) -->
-        <img id="s2-1" src="./s2-1.jpg" />
-        <img id="s2-2" src="./s2-2.jpg" />
-        <img id="s2-3" src="./s2-3.jpg" />
-        <img id="s2-4" src="./s2-4.jpg" />
-        <img id="s2-5" src="./s2-5.jpg" />
-        <img id="s2-6" src="./s2-6.jpg" />
-        <img id="s2-7" src="./s2-7.jpg" />
-        <img id="s2-8" src="./s2-8.jpg" />
-        <img id="s2-9" src="./s2-9.jpg" />
-        <img id="s2-10" src="./s2-10.jpg" />
-        <img id="s2-11" src="./s2-11.jpg" />
-        <img id="s2-12" src="./s2-12.jpg" />
-        <img id="s2-13" src="./s2-13.jpg" />
-        <img id="s2-14" src="./s2-14.jpg" />
-        <img id="s2-15" src="./s2-15.jpg" />
-        <img id="s2-16" src="./s2-16.jpg" />
-        <img id="s3-1" src="./s3-1.jpg" />
-        <img id="s3-2" src="./s3-2.jpg" />
-        <img id="s3-3" src="./s3-3.jpg" />
-        <img id="s3-4" src="./s3-4.jpg" />
-        <img id="s3-5" src="./s3-5.jpg" />
-        <img id="s3-6" src="./s3-6.jpg" />
-        <img id="s3-7" src="./s3-7.jpg" />
-        <img id="s3-8" src="./s3-8.jpg" />
-        <img id="s3-9" src="./s3-9.jpg" />
-        <img id="s3-10" src="./s3-10.jpg" />
-        <img id="s3-11" src="./s3-11.jpg" />
-        <img id="s3-12" src="./s3-12.jpg" />
-        <img id="s3-13" src="./s3-13.jpg" />
-        <img id="s3-14" src="./s3-14.jpg" />
-        <img id="s3-15" src="./s3-15.jpg" />
-        <img id="s3-16" src="./s3-16.jpg" />
-        <img id="s3-17" src="./s3-17.jpg" />
-        <img id="s3-18" src="./s3-18.jpg" />
-        <img id="s3-19" src="./s3-19.jpg" />
-        <img id="s3-20" src="./s3-20.jpg" />
+        <!-- 動画アセットは削除し、画像のみにしました -->
+        <img id="slide1-1" src="./slide1-1.jpg" />
+        <img id="slide1-2" src="./slide1-2.jpg" />
+        <img id="slide1-3" src="./slide1-3.jpg" />
+        <img id="slide1-4" src="./slide1-4.jpg" />
+        <img id="slide1-5" src="./slide1-5.jpg" />
+        <img id="slide1-6" src="./slide1-6.jpg" />
+        <img id="slide1-7" src="./slide1-7.jpg" />
+        <img id="slide1-8" src="./slide1-8.jpg" />
+        <img id="slide1-9" src="./slide1-9.jpg" />
+        <img id="slide1-10" src="./slide1-10.jpg" />
+        <img id="slide1-11" src="./slide1-11.jpg" />
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <!-- Target 0: 動画に変更 -->
-      <a-entity mindar-image-target="targetIndex: 0">
-        <a-video id="ar-video-1" src="#vid-1" position="0 0 0" adjust-video-size></a-video>
-      </a-entity>
+      <!-- Target 0: 空のエンティティ (認識されたらJSでYouTubeを表示します) -->
+      <a-entity mindar-image-target="targetIndex: 0"></a-entity>
 
-      <!-- Target 1: スライドショー維持 -->
+      <!-- Target 1: スライドショー -->
       <a-entity mindar-image-target="targetIndex: 1">
-        <a-image id="slideshow-2" position="0 0 0" auto-slideshow="prefix: s2; interval: 3500"></a-image>
-      </a-entity>
-
-      <!-- Target 2: スライドショー維持 -->
-      <a-entity mindar-image-target="targetIndex: 2">
-        <a-image id="slideshow-3" position="0 0 0" auto-slideshow="prefix: s3; interval: 3500"></a-image>
+        <a-image id="slideshow-2" position="0 0 0" auto-slideshow="prefix: slide1; interval: 3500"></a-image>
       </a-entity>
 
     </a-scene>
@@ -453,6 +405,9 @@
       const guides = document.querySelectorAll('.scan-guide');
       const panels = document.querySelectorAll('.controls-panel');
       const playPauseBtns = document.querySelectorAll('.play-pause-btn');
+
+      const ytPopup = document.getElementById('youtube-popup');
+      const ytPlayer = document.getElementById('yt-player');
 
       const iconPlay = '<svg viewBox="0 0 24 24"><path d="M7 4V20L19 12L7 4Z"></path></svg>';
       const iconPause = '<svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect></svg>';
@@ -468,7 +423,6 @@
         }
       }
 
-      // 現在アクティブなメディアを管理する変数
       window.activeMedia = null;
 
       let savedPlayState = sessionStorage.getItem('globalIsPlaying');
@@ -476,7 +430,6 @@
       
       playPauseBtns.forEach(btn => btn.innerHTML = shouldPlay ? iconPause : iconPlay);
 
-      // グローバル操作
       window.globalPrev = function() {
         if (window.activeMedia && window.activeMedia.type === 'slideshow') {
           window.activeMedia.instance.changeSlide(-1);
@@ -500,13 +453,12 @@
             window.activeMedia.instance.startSlide();
             setGlobalPlayState(true);
           }
-        } else if (window.activeMedia.type === 'video') {
-          const v = window.activeMedia.element;
-          if (!v.paused) {
-            v.pause();
+        } else if (window.activeMedia.type === 'youtube') {
+          if (shouldPlay) {
+            ytPlayer.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
             setGlobalPlayState(false);
           } else {
-            v.play();
+            ytPlayer.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
             setGlobalPlayState(true);
           }
         }
@@ -518,22 +470,15 @@
         playPauseBtns.forEach(btn => btn.innerHTML = play ? iconPause : iconPlay);
       }
 
-      // ターゲットごとの処理定義
       const targetsData = [
           { 
             el: document.querySelector('[mindar-image-target="targetIndex: 0"]'), 
-            type: 'video', 
-            videoEl: document.getElementById('vid-1')
+            type: 'youtube'
           },
           { 
             el: document.querySelector('[mindar-image-target="targetIndex: 1"]'), 
             type: 'slideshow', 
             contentEl: document.getElementById('slideshow-2') 
-          },
-          { 
-            el: document.querySelector('[mindar-image-target="targetIndex: 2"]'), 
-            type: 'slideshow', 
-            contentEl: document.getElementById('slideshow-3') 
           }
       ];
 
@@ -547,16 +492,19 @@
               guides.forEach(g => g.style.opacity = 0); 
               panels.forEach(p => p.classList.add('active')); 
               
-              if (t.type === 'video') {
-                  window.activeMedia = { type: 'video', element: t.videoEl };
-                  if (shouldPlay) t.videoEl.play();
+              if (t.type === 'youtube') {
+                  window.activeMedia = { type: 'youtube' };
+                  ytPopup.style.display = 'block';
+                  // 初回再生時はスマートフォンの自動再生制限があるため、ユーザーにタップしてもらう必要がある場合があります
+                  if (shouldPlay) {
+                      ytPlayer.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+                  }
               } else if (t.type === 'slideshow') {
                   const comp = t.contentEl.components['auto-slideshow'];
                   window.activeMedia = { type: 'slideshow', instance: comp };
                   if (shouldPlay && comp) comp.startSlide();
               }
               
-              // 再生状態に合わせてアイコンを更新
               playPauseBtns.forEach(btn => btn.innerHTML = shouldPlay ? iconPause : iconPlay);
           });
           
@@ -569,8 +517,9 @@
                 panels.forEach(p => p.classList.remove('active')); 
               }
               
-              if (t.type === 'video') {
-                  t.videoEl.pause();
+              if (t.type === 'youtube') {
+                  ytPopup.style.display = 'none';
+                  ytPlayer.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
               } else if (t.type === 'slideshow') {
                   if (t.contentEl.components['auto-slideshow']) {
                       t.contentEl.components['auto-slideshow'].stopSlide();
